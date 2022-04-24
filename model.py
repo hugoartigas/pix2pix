@@ -12,62 +12,46 @@ class Generator(nn.Module):
         self.n_channel = n_channel
         ## Defining the down sample layers
         self.conv1  = nn.Sequential(
-            nn.Conv2d(self.n_channel,self.n_channel, kernel_size=4, stride = 2, padding=1, bias=False),
-            nn.ReLU(inplace=True),
-            nn.BatchNorm2d(self.n_channel))
-        self.conv2 = nn.Sequential(
+            nn.Conv2d(self.n_channel,self.n_channel, kernel_size=4, stride = 2, padding=1, bias=False))
+        self.conv2 = nn.Sequential(nn.ReLU(inplace=True),
             nn.Conv2d(self.n_channel,self.n_channel*2, kernel_size=4, stride = 2, padding=1, bias=False),
-            nn.ReLU(inplace=True),
             nn.BatchNorm2d(self.n_channel*2))
-        self.conv3 = nn.Sequential(
+        self.conv3 = nn.Sequential(nn.ReLU(inplace=True),
             nn.Conv2d(self.n_channel*2,self.n_channel*4, kernel_size=4, stride = 2, padding=1, bias=False),
-            nn.ReLU(inplace=True),
             nn.BatchNorm2d(self.n_channel*4))
-        self.conv4 = nn.Sequential(
+        self.conv4 = nn.Sequential(nn.ReLU(inplace=True),
             nn.Conv2d(self.n_channel*4,self.n_channel*8, kernel_size=4, stride = 2, padding=1, bias=False),
-            nn.ReLU(inplace=True),
             nn.BatchNorm2d(self.n_channel*8))
-        self.conv5 = nn.Sequential(
+        self.conv5 = nn.Sequential(nn.ReLU(inplace=True),
             nn.Conv2d(self.n_channel*8,self.n_channel*8, kernel_size=4, stride = 2, padding=1, bias=False),
-            nn.ReLU(inplace=True),
             nn.BatchNorm2d(self.n_channel*8))
-        self.conv6 = nn.Sequential(
+        self.conv6 = nn.Sequential(nn.ReLU(inplace=True),
             nn.Conv2d(self.n_channel*8,self.n_channel*8, kernel_size=4, stride = 2, padding=1, bias=False),
-            nn.ReLU(inplace=True),
             nn.BatchNorm2d(self.n_channel*8))
-        self.conv7 = nn.Sequential(
+        self.conv7 = nn.Sequential(nn.ReLU(inplace=True),
             nn.Conv2d(self.n_channel*8,self.n_channel*8, kernel_size=4, stride = 2, padding=1, bias=False),
-            nn.ReLU(inplace=True),
             nn.BatchNorm2d(self.n_channel*8))
-        self.conv8 = nn.Sequential(
+        self.conv8 = nn.Sequential(nn.ReLU(inplace=True),
             nn.Conv2d(self.n_channel*8,self.n_channel*8, kernel_size = 2, stride = 1, padding=0, bias=False),
-            nn.ReLU(inplace=True),
             nn.BatchNorm2d(self.n_channel*8))
         # Defining the Dropout function
         self.dropout = nn.Dropout(0.5)
         # Defing the upsample layers
-        self.upconv1 = nn.Sequential( nn.ConvTranspose2d(self.n_channel*8, self.n_channel*8,kernel_size=4, stride=2, padding=1, bias=True),
-            nn.ReLU(inplace=True),
+        self.upconv1 = nn.Sequential( nn.ReLU(inplace=True),nn.ConvTranspose2d(self.n_channel*8, self.n_channel*8,kernel_size=4, stride=2, padding=1, bias=True),
             nn.BatchNorm2d(self.n_channel*8))
-        self.upconv2 = nn.Sequential( nn.ConvTranspose2d(2*self.n_channel*8, self.n_channel*8, kernel_size=4, stride=2,padding=1, bias=True),
-            nn.ReLU(inplace=True),
+        self.upconv2 = nn.Sequential(nn.ReLU(inplace=True), nn.ConvTranspose2d(2*self.n_channel*8, self.n_channel*8, kernel_size=4, stride=2,padding=1, bias=True),
             nn.BatchNorm2d(self.n_channel*8))
-        self.upconv3 = nn.Sequential( nn.ConvTranspose2d(2*self.n_channel*8, self.n_channel*8,kernel_size=4, stride=2, padding=1, bias=True),
-            nn.ReLU(inplace=True),
+        self.upconv3 = nn.Sequential( nn.ReLU(inplace=True),nn.ConvTranspose2d(2*self.n_channel*8, self.n_channel*8,kernel_size=4, stride=2, padding=1, bias=True),
             nn.BatchNorm2d(self.n_channel*8))
-        self.upconv4 = nn.Sequential( nn.ConvTranspose2d(2*self.n_channel*8, self.n_channel*8, kernel_size=4, stride=2,padding=1, bias=True),
-            nn.ReLU(inplace=True),
+        self.upconv4 = nn.Sequential(nn.ReLU(inplace=True), nn.ConvTranspose2d(2*self.n_channel*8, self.n_channel*8, kernel_size=4, stride=2,padding=1, bias=True),
             nn.BatchNorm2d(self.n_channel*8))
-        self.upconv5 = nn.Sequential( nn.ConvTranspose2d(2*self.n_channel*8, self.n_channel*4,kernel_size=4, stride=2, padding=1, bias=True),
-            nn.ReLU(inplace=True),
+        self.upconv5 = nn.Sequential( nn.ReLU(inplace=True),nn.ConvTranspose2d(2*self.n_channel*8, self.n_channel*4,kernel_size=4, stride=2, padding=1, bias=True),
             nn.BatchNorm2d(self.n_channel*4))
-        self.upconv6 = nn.Sequential( nn.ConvTranspose2d(2*self.n_channel*4, self.n_channel*2, kernel_size=4, stride=2,padding=1, bias=True),
-            nn.ReLU(inplace=True),
+        self.upconv6 = nn.Sequential( nn.ReLU(inplace=True),nn.ConvTranspose2d(2*self.n_channel*4, self.n_channel*2, kernel_size=4, stride=2,padding=1, bias=True),
             nn.BatchNorm2d(self.n_channel*2))
-        self.upconv7 = nn.Sequential( nn.ConvTranspose2d(2*self.n_channel*2, self.n_channel,kernel_size=4, stride=2, padding=1, bias=True),
-            nn.ReLU(inplace=True),
+        self.upconv7 = nn.Sequential( nn.ReLU(inplace=True),nn.ConvTranspose2d(2*self.n_channel*2, self.n_channel,kernel_size=4, stride=2, padding=1, bias=True),
             nn.BatchNorm2d(self.n_channel))
-        self.upconv8 = nn.Sequential( nn.ConvTranspose2d(2*self.n_channel, self.n_channel, kernel_size=4, stride=2,padding=1, bias=True),
+        self.upconv8 = nn.Sequential( nn.ReLU(inplace=True),nn.ConvTranspose2d(2*self.n_channel, self.n_channel, kernel_size=4, stride=2,padding=1, bias=True),
             nn.Tanh())
 
     def forward(self,x):
@@ -96,3 +80,35 @@ class Generator(nn.Module):
         outup8 = self.upconv8(outp7)
         return outup8
 
+class Discriminator(nn.Module):
+    """
+    The Discriminator with the patch architecture
+    """
+    def __init__(self,n_channel = 3):
+
+        super(Discriminator, self).__init__()
+        self.n_channel = n_channel
+        self.conv1  = nn.Sequential(
+            nn.Conv2d(self.n_channel,self.n_channel, kernel_size=4, stride = 2, padding=1, bias=False),
+            nn.ReLU(inplace=True))
+        self.conv2 = nn.Sequential(
+            nn.Conv2d(self.n_channel,self.n_channel*2, kernel_size=4, stride = 2, padding=1, bias=False),
+            nn.BatchNorm2d(self.n_channel*2),nn.ReLU(inplace=True))
+        self.conv3 = nn.Sequential(
+            nn.Conv2d(self.n_channel*2,self.n_channel*4, kernel_size=4, stride = 2, padding=1, bias=False),
+            nn.BatchNorm2d(self.n_channel*4),nn.ReLU(inplace=True))
+        self.conv4 = nn.Sequential(
+            nn.Conv2d(self.n_channel*4,self.n_channel*8, kernel_size=4, stride = 2, padding=1, bias=False),
+            nn.BatchNorm2d(self.n_channel*8),nn.ReLU(inplace=True))
+        self.lin = nn.Sequential(nn.Linear(6144,1))
+
+
+    def forward(self,x):
+        out1 = self.conv1(x)
+        out2 = self.conv2(out1)
+        out3 = self.conv3(out2)
+        out4 = self.conv4(out3)
+        out = torch.reshape(out4,(x.shape[0],-1))
+        out = self.lin(out)
+        sig = nn.Sigmoid()
+        return sig(out)
