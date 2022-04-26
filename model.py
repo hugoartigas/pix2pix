@@ -1,3 +1,4 @@
+from re import X
 import torch
 import torch.nn as nn
 
@@ -82,7 +83,7 @@ class Generator(nn.Module):
 
 class Discriminator(nn.Module):
     """
-    The Discriminator with the patch architecture
+    The Discriminator with the patchGAN architecture
     """
     def __init__(self,n_channel = 3):
 
@@ -112,3 +113,18 @@ class Discriminator(nn.Module):
         out = self.lin(out)
         sig = nn.Sigmoid()
         return sig(out)
+
+class Pix2Pix(nn.Module):
+    """
+    The Pix2Pix archiecture with U-Net generator and patch GAN disciminator
+    """
+    def __init__(self):
+        super(Pix2Pix, self).__init__()
+        self.generator = Generator()
+        self.discriminator = Discriminator()
+
+    def forward(self,x):
+        gen = self.generator(x)
+        discr = self.discriminator(x)
+        return gen,discr
+

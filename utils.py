@@ -13,7 +13,8 @@ import torch
 from torch.utils.data import Dataset, DataLoader
 import torchvision.transforms as T
 import torch.nn.functional as F
-
+import torch.nn as nn
+from torch.autograd import Variable
 
 images_path = os.path.join(os.getcwd(), 'images') 
 
@@ -24,19 +25,22 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 data_transforms = {
     'training': T.Compose([
         T.ToPILImage(),
-        T.RandomHorizontalFlip(),
+        # T.RandomHorizontalFlip(),
         T.ToTensor(),
-        T.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+        # T.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
+        T.Resize((256,256))
     ]),
     'validation': T.Compose([
         T.ToPILImage(),
         T.ToTensor(),
-        T.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+        # T.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
+        T.Resize((256,256))
     ]),
     'testing': T.Compose([
         T.ToPILImage(),
         T.ToTensor(),
-        T.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+        # T.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
+        T.Resize((256,256))
     ]),
 }
 
@@ -101,17 +105,101 @@ class ImageSet(Dataset):
             image = cv2.imread(image_path)
             w = image.shape[1]
             w = w // 2
-            input_image = image[:, w:, :]
-            real_image = image[:, :w, :]
+            input_image = image[:, :w, :]
+            # input_image = input_image.reshape((input_image.shape[2],input_image.shape[0],input_image.shape[1]))
+            real_image = image[:, w:, :]
+            # real_image = real_image.reshape((input_image.shape[2],input_image.shape[0],input_image.shape[1]))
         else: 
             image_path = images_path + '/' + self.set + '/val/' + self.images_names['val'][index] 
             image = cv2.imread(image_path)
             w = image.shape[1]
             w = w // 2
-            input_image = image[:, w:, :]
-            real_image = image[:, :w, :]
+            input_image = image[:, :w, :]
+            # input_image = input_image.reshape((input_image.shape[2],input_image.shape[0],input_image.shape[1]))
+            real_image = image[:, w:, :]
+            # real_image = real_image.reshape((input_image.shape[2],input_image.shape[0],input_image.shape[1]))
         if self.transform:
             input_image = self.transform(input_image)
             real_image = self.transform(real_image)
+        input_image = (input_image /0.5) -  1
+        real_image = (real_image / 0.5) - 1
         return input_image, real_image
 
+
+def train(model,n_epochs,dataloaders):
+        """
+        Training of the Pix2Pix model by firstly trainin the generatora and then training the discriminator
+        """
+        # Checking if a gpu is available
+        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        model.generator = model.generator.to(device)
+        model.discriminator = model.discriminator.to(device)
+
+        # Loss function
+        adversarial_loss = nn.BCEWithLogitsLoss()
+        criterionL1 = nn.L1Loss()
+
+        # Optimizers
+        optimizer_G = torch.optim.Adam(model.generator.parameters(), lr=0.0002,betas=(0.5, 0.999))
+        optimizer_D = torch.optim.Adam(model.discriminator.parameters(), lr=0.0002,betas=(0.5, 0.999))
+
+        since = time.time()
+
+        model.train()
+        for epoch in range(n_epochs):
+            print(f'Epoch {epoch + 1}/{n_epochs}')
+            print('-' * 10)
+
+            running_loss = 0.0
+            running_gen_loss = 0.0
+            running_discr_loss = 0.0
+            # iterate over data
+            for inputs, reals in Bar(dataloaders):
+                inputs = inputs.to(device)
+                reals = reals.to(device)
+
+                # zero the parameter gradients
+                optimizer_G.zero_grad()
+                optimizer_D.zero_grad()
+            
+                # -----------------
+                #  Train Generator
+                # -----------------
+
+                optimizer_G.zero_grad()
+
+                # Generate a batch of images
+                gen_imgs = model.generator(inputs)
+
+                # Loss measures generator's ability to fool the discriminator
+                valid = Variable(torch.Tensor(inputs.size(0), 1).fill_(1.0), requires_grad=False)
+                fake = Variable(torch.Tensor(inputs.size(0), 1).fill_(0.0), requires_grad=False)
+                g_loss = adversarial_loss(model.discriminator(gen_imgs), valid) + criterionL1(gen_imgs,reals)
+
+                g_loss.backward()
+                optimizer_G.step()
+                running_gen_loss += g_loss.item()
+
+                # ---------------------
+                #  Train Discriminator
+                # ---------------------
+
+                optimizer_D.zero_grad()
+
+                # Measure discriminator's ability to classify real from generated samples
+                real_loss = adversarial_loss(model.discriminator(reals), valid)
+                fake_loss = adversarial_loss(model.discriminator(gen_imgs.detach()), fake)
+                d_loss = (real_loss + fake_loss) / 2
+
+                d_loss.backward()
+                optimizer_D.step()
+                running_discr_loss += d_loss.item()
+                # statistics
+                running_loss += d_loss.item()
+
+      
+
+            print(f'Loss: {running_loss:.4f}, generator loss: {running_gen_loss:.4f}, discriminator loss: {running_discr_loss:.4f}.')
+
+        time_elapsed = time.time() - since
+        print(f'Training complete in {time_elapsed // 60:.0f}m {time_elapsed % 60:.0f}s')
