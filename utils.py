@@ -136,8 +136,10 @@ def train(model,n_epochs,dataloaders):
         model.discriminator = model.discriminator.to(device)
 
         # Loss function
+        
         adversarial_loss = nn.BCEWithLogitsLoss()
         criterionL1 = nn.L1Loss()
+        l = 100 # hyperparamter in front of the L1 regularization
 
         # Optimizers
         optimizer_G = torch.optim.Adam(model.generator.parameters(), lr=0.0002,betas=(0.5, 0.999))
@@ -174,7 +176,7 @@ def train(model,n_epochs,dataloaders):
                 # Loss measures generator's ability to fool the discriminator
                 valid = Variable(torch.Tensor(inputs.size(0), 1).fill_(1.0), requires_grad=False)
                 fake = Variable(torch.Tensor(inputs.size(0), 1).fill_(0.0), requires_grad=False)
-                g_loss = adversarial_loss(model.discriminator(gen_imgs), valid) + criterionL1(gen_imgs,reals)
+                g_loss = adversarial_loss(model.discriminator(gen_imgs), valid) + l*criterionL1(gen_imgs,reals)
 
                 g_loss.backward()
                 optimizer_G.step()
