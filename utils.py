@@ -170,9 +170,9 @@ def train(model,n_epochs,dataloaders):
                 # Generate a batch of images
                 gen_imgs = model.generator(inputs).to(device)
                 # Loss measures generator's ability to fool the discriminator
-                valid = Variable(torch.Tensor(inputs.size(0), 1).fill_(1.0), requires_grad=False).to(device)
-                fake = Variable(torch.Tensor(inputs.size(0), 1).fill_(0.0), requires_grad=False).to(device)
-                discrs = model.discriminator(gen_imgs).to(device)
+                discrs = model.discriminator(gen_imgs,inputs).to(device)
+                valid = torch.ones_like(discrs).to(device)
+                fake = torch.zeros_like(discrs).to(device)
                 g_loss = adversarial_loss(discrs, valid) + l*criterionL1(gen_imgs,reals)
 
                 g_loss.backward()
@@ -186,8 +186,8 @@ def train(model,n_epochs,dataloaders):
                 optimizer_D.zero_grad()
 
                 # Measure discriminator's ability to classify real from generated samples
-                real_loss = adversarial_loss(model.discriminator(reals), valid)
-                fake_loss = adversarial_loss(model.discriminator(gen_imgs.detach()), fake)
+                real_loss = adversarial_loss(model.discriminator(reals,inputs), valid)
+                fake_loss = adversarial_loss(model.discriminator(gen_imgs.detach(),inputs), fake)
                 d_loss = (real_loss + fake_loss) / 2
 
                 d_loss.backward()

@@ -13,28 +13,35 @@ class Generator(nn.Module):
         self.n_channel = n_channel
         ## Defining the down sample layers
         self.conv1  = nn.Sequential(
-            nn.Conv2d(self.n_channel,self.n_channel, kernel_size=4, stride = 2, padding=1, bias=False)).to(utils.device)
-        self.conv2 = nn.Sequential(nn.ReLU(inplace=True),
+            nn.Conv2d(self.n_channel,self.n_channel, kernel_size=4, stride = 2, padding=1, bias=False),
+            nn.LeakyReLU(negative_slope=0.3)).to(utils.device)
+        self.conv2 = nn.Sequential(
             nn.Conv2d(self.n_channel,self.n_channel*2, kernel_size=4, stride = 2, padding=1, bias=False),
             nn.BatchNorm2d(self.n_channel*2)).to(utils.device)
-        self.conv3 = nn.Sequential(nn.ReLU(inplace=True),
+        self.conv3 = nn.Sequential(
             nn.Conv2d(self.n_channel*2,self.n_channel*4, kernel_size=4, stride = 2, padding=1, bias=False),
-            nn.BatchNorm2d(self.n_channel*4)).to(utils.device)
-        self.conv4 = nn.Sequential(nn.ReLU(inplace=True),
+            nn.BatchNorm2d(self.n_channel*4),
+            nn.LeakyReLU(negative_slope=0.3)).to(utils.device)
+        self.conv4 = nn.Sequential(
             nn.Conv2d(self.n_channel*4,self.n_channel*8, kernel_size=4, stride = 2, padding=1, bias=False),
-            nn.BatchNorm2d(self.n_channel*8)).to(utils.device)
-        self.conv5 = nn.Sequential(nn.ReLU(inplace=True),
+            nn.BatchNorm2d(self.n_channel*8),
+            nn.LeakyReLU(negative_slope=0.3)).to(utils.device)
+        self.conv5 = nn.Sequential(
             nn.Conv2d(self.n_channel*8,self.n_channel*8, kernel_size=4, stride = 2, padding=1, bias=False),
-            nn.BatchNorm2d(self.n_channel*8)).to(utils.device)
-        self.conv6 = nn.Sequential(nn.ReLU(inplace=True),
+            nn.BatchNorm2d(self.n_channel*8),
+            nn.LeakyReLU(negative_slope=0.3)).to(utils.device)
+        self.conv6 = nn.Sequential(
             nn.Conv2d(self.n_channel*8,self.n_channel*8, kernel_size=4, stride = 2, padding=1, bias=False),
-            nn.BatchNorm2d(self.n_channel*8)).to(utils.device)
-        self.conv7 = nn.Sequential(nn.ReLU(inplace=True),
+            nn.BatchNorm2d(self.n_channel*8),
+            nn.LeakyReLU(negative_slope=0.3)).to(utils.device)
+        self.conv7 = nn.Sequential(
             nn.Conv2d(self.n_channel*8,self.n_channel*8, kernel_size=4, stride = 2, padding=1, bias=False),
-            nn.BatchNorm2d(self.n_channel*8)).to(utils.device)
-        self.conv8 = nn.Sequential(nn.ReLU(inplace=True),
+            nn.BatchNorm2d(self.n_channel*8),
+            nn.LeakyReLU(negative_slope=0.3)).to(utils.device)
+        self.conv8 = nn.Sequential(
             nn.Conv2d(self.n_channel*8,self.n_channel*8, kernel_size = 2, stride = 1, padding=0, bias=False),
-            nn.BatchNorm2d(self.n_channel*8)).to(utils.device)
+            nn.BatchNorm2d(self.n_channel*8),
+            nn.LeakyReLU(negative_slope=0.3)).to(utils.device)
         # Defining the Dropout function
         self.dropout = nn.Dropout(0.5).to(utils.device)
         # Defing the upsample layers
@@ -71,13 +78,13 @@ class Generator(nn.Module):
         outup3 = self.upconv3(outp2)
         outp3 = torch.cat((self.dropout(outup3),out5),1)
         outup4 = self.upconv4(outp3)
-        outp4 = torch.cat((self.dropout(outup4),out4),1)
+        outp4 = torch.cat((outup4,out4),1)
         outup5 = self.upconv5(outp4)
-        outp5 = torch.cat((self.dropout(outup5),out3),1)
+        outp5 = torch.cat((outup5,out3),1)
         outup6 = self.upconv6(outp5)
-        outp6 = torch.cat((self.dropout(outup6),out2),1)
+        outp6 = torch.cat((outup6,out2),1)
         outup7 = self.upconv7(outp6)
-        outp7 = torch.cat((self.dropout(outup7),out1),1)
+        outp7 = torch.cat((outup7,out1),1)
         outup8 = self.upconv8(outp7)
         return outup8
 
@@ -90,29 +97,32 @@ class Discriminator(nn.Module):
         super(Discriminator, self).__init__()
         self.n_channel = n_channel
         self.conv1  = nn.Sequential(
-            nn.Conv2d(self.n_channel,self.n_channel, kernel_size=4, stride = 2, padding=1, bias=False),
-            nn.ReLU(inplace=True)).to(utils.device)
+            nn.Conv2d(self.n_channel,64, kernel_size=4, stride = 2, padding=1, bias=False),
+            nn.LeakyReLU(negative_slope=0.3)).to(utils.device)
         self.conv2 = nn.Sequential(
-            nn.Conv2d(self.n_channel,self.n_channel*2, kernel_size=4, stride = 2, padding=1, bias=False),
-            nn.BatchNorm2d(self.n_channel*2),nn.ReLU(inplace=True)).to(utils.device)
+            nn.Conv2d(64,128, kernel_size=4, stride = 2, padding=1, bias=False),
+            nn.BatchNorm2d(128),nn.LeakyReLU(negative_slope=0.3)).to(utils.device)
         self.conv3 = nn.Sequential(
-            nn.Conv2d(self.n_channel*2,self.n_channel*4, kernel_size=4, stride = 2, padding=1, bias=False),
-            nn.BatchNorm2d(self.n_channel*4),nn.ReLU(inplace=True)).to(utils.device)
+            nn.Conv2d(128,256, kernel_size=4, stride = 2, padding=1, bias=False),
+            nn.BatchNorm2d(256),nn.LeakyReLU(negative_slope=0.3)).to(utils.device)
+        self.padd = torch.nn.ZeroPad2d(1)
         self.conv4 = nn.Sequential(
-            nn.Conv2d(self.n_channel*4,self.n_channel*8, kernel_size=4, stride = 2, padding=1, bias=False),
-            nn.BatchNorm2d(self.n_channel*8),nn.ReLU(inplace=True)).to(utils.device)
-        self.lin = nn.Sequential(nn.Linear(6144,1)).to(utils.device)
+            nn.Conv2d(256,512, kernel_size=4, stride = 1, bias=False),
+            nn.BatchNorm2d(512),nn.LeakyReLU(negative_slope=0.3)).to(utils.device)
+        self.conv5 = nn.Sequential(
+            nn.Conv2d(512,1, kernel_size=4, stride = 1, bias=False)).to(utils.device)
 
 
-    def forward(self,x):
+    def forward(self,x,y):
+        out = torch.cat((x,y),1)
         out1 = self.conv1(x)
         out2 = self.conv2(out1)
         out3 = self.conv3(out2)
+        out3 = self.padd(out3)
         out4 = self.conv4(out3)
-        out = torch.reshape(out4,(x.shape[0],-1))
-        out = self.lin(out)
-        sig = nn.Sigmoid()
-        return sig(out)
+        out5 = self.padd(out4)
+        out6 = self.conv5(out5)
+        return out6
 
 class Pix2Pix(nn.Module):
     """
