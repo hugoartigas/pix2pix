@@ -39,9 +39,14 @@ class Generator(nn.Module):
             nn.BatchNorm2d(self.n_channel*8),
             nn.LeakyReLU(negative_slope=0.3)).to(utils.device)
         self.conv8 = nn.Sequential(
-            nn.Conv2d(self.n_channel*8,self.n_channel*8, kernel_size = 2, stride = 1, padding=0, bias=False),
+            nn.Conv2d(self.n_channel*8,self.n_channel*8, kernel_size = 2, stride = 1, padding=0, bias=False)).to(utils.device)
+        self.batchnorm = nn.Sequential(
             nn.BatchNorm2d(self.n_channel*8),
             nn.LeakyReLU(negative_slope=0.3)).to(utils.device)
+        self.batchnorm = nn.Sequential(
+            nn.BatchNorm2d(self.n_channel*8),
+            nn.LeakyReLU(negative_slope=0.3)).to(utils.device)
+        self.leaky = nn.LeakyReLU(negative_slope=0.3).to(utils.device)
         # Defining the Dropout function
         self.dropout = nn.Dropout(0.5).to(utils.device)
         # Defing the upsample layers
@@ -71,6 +76,10 @@ class Generator(nn.Module):
         out6 = self.conv6(out5)
         out7 = self.conv7(out6)
         out8 = self.conv8(out7)
+        if x.shape[0] == 1:
+            out8 = self.leaky(out8)
+        else:
+            out8 = self.batchnorm(out8)
         outup1 = self.upconv1(out8)
         outp1 = torch.cat((self.dropout(outup1),out7),1)
         outup2 = self.upconv2(outp1)

@@ -29,7 +29,9 @@ data_transforms = {
         # T.RandomHorizontalFlip(),
         T.ToTensor(),
         # T.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
-        T.Resize((256,256))
+        T.Resize((286,286)),
+        T.RandomCrop((256,256))
+        # T.RandomHorizontalFlip()
     ]),
     'validation': T.Compose([
         T.ToPILImage(),
@@ -74,7 +76,7 @@ def get_train_test_image_names(set ,images_path = images_path):
 class ImageSet(Dataset):
     """The current data set."""
 
-    def __init__(self,set , transform = None, 
+    def __init__(self,seti , transform = None, 
                     val_mode = False ):
         """
         Description
@@ -89,7 +91,7 @@ class ImageSet(Dataset):
         -------------
         Torch Dataset for the training set
         """
-        self.set = set
+        self.set = seti
         self.transform = transform
         self.val_mode = val_mode
         self.images_names = get_train_test_image_names(self.set)
@@ -106,18 +108,18 @@ class ImageSet(Dataset):
             image = cv2.imread(image_path)
             w = image.shape[1]
             w = w // 2
-            input_image = image[:, :w, :]
+            input_image = image[:, w:, :]
             # input_image = input_image.reshape((input_image.shape[2],input_image.shape[0],input_image.shape[1]))
-            real_image = image[:, w:, :]
+            real_image = image[:, :w, :]
             # real_image = real_image.reshape((input_image.shape[2],input_image.shape[0],input_image.shape[1]))
         else: 
             image_path = images_path + '/' + self.set + '/val/' + self.images_names['val'][index] 
             image = cv2.imread(image_path)
             w = image.shape[1]
             w = w // 2
-            input_image = image[:, :w, :]
+            input_image = image[:, w:, :]
             # input_image = input_image.reshape((input_image.shape[2],input_image.shape[0],input_image.shape[1]))
-            real_image = image[:, w:, :]
+            real_image = image[:, :w, :]
             # real_image = real_image.reshape((input_image.shape[2],input_image.shape[0],input_image.shape[1]))
         if self.transform:
             input_image = self.transform(input_image)
@@ -139,8 +141,8 @@ def train(model,n_epochs,dataloaders):
         l = 100 # hyperparamter in front of the L1 regularization
 
         # Optimizers
-        optimizer_G = torch.optim.Adam(model.generator.parameters(), lr=0.0002,betas=(0.5, 0.999))
-        optimizer_D = torch.optim.Adam(model.discriminator.parameters(), lr=0.0002,betas=(0.5, 0.999))
+        optimizer_G = torch.optim.Adam(model.generator.parameters(), lr=0.0002,betas=(0.5, 0.999),eps=1e-07)
+        optimizer_D = torch.optim.Adam(model.discriminator.parameters(), lr=0.0002,betas=(0.5, 0.999),eps=1e-07)
 
         since = time.time()
 
@@ -188,7 +190,7 @@ def train(model,n_epochs,dataloaders):
                 # Measure discriminator's ability to classify real from generated samples
                 real_loss = adversarial_loss(model.discriminator(reals,inputs), valid)
                 fake_loss = adversarial_loss(model.discriminator(gen_imgs.detach(),inputs), fake)
-                d_loss = (real_loss + fake_loss) / 2
+                d_loss = real_loss + fake_loss
 
                 d_loss.backward()
                 optimizer_D.step()
