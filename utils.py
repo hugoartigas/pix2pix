@@ -1,50 +1,33 @@
 from barbar import Bar
-import copy
 import cv2
 import matplotlib.pyplot as plt
 import numpy as np
 import os
-import pandas as pd
-import pickle
-import re
-from sklearn.metrics import f1_score
 import time
 import torch
 from torch.utils.data import Dataset, DataLoader
 import torchvision.transforms as T
-import torch.nn.functional as F
-import torch.nn as nn
-from torch.autograd import Variable
+from torch.nn import BCEWithLogitsLoss, L1Loss
 
+# set paths
 images_path = os.path.join(os.getcwd(), 'images') 
 
-# setting device
+# set device
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-# device = 'cpu'
 
-# setting data transformation dictionary for training, validation and testing
+# set data transformation dictionary for training, validation
 data_transforms = {
     'train': T.Compose([
         T.ToPILImage(),
-        # T.RandomHorizontalFlip(),
         T.ToTensor(),
-        # T.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
         T.Resize((286,286)),
         T.RandomCrop((256,256))
-        # T.RandomHorizontalFlip()
     ]),
     'val': T.Compose([
         T.ToPILImage(),
         T.ToTensor(),
-        # T.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
         T.Resize((256,256))
-    ]),
-    'test': T.Compose([
-        T.ToPILImage(),
-        T.ToTensor(),
-        # T.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
-        T.Resize((256,256))
-    ]),
+    ])
 }
 
 
@@ -113,12 +96,37 @@ class ImageDataset(Dataset):
         if self.transform:
             input_image = self.transform(input_image)
             real_image = self.transform(real_image)
-        # rescale between -1 and 1
+        # rescale between -1 and 1 (linear mapping [0,1] to [-1,1])
         input_image = (input_image / 0.5) -  1
         real_image = (real_image / 0.5) - 1
 
         return input_image, real_image
 
+def generate_images(model, input, real):
+    """
+    Description
+    -------------
+    Plot input, real image and model predictions side by side
+    Parameters
+    -------------
+    model       : model
+    """
+    prediction = model(input, training=True)
+
+    # create figure
+    plt.figure(figsize=(15, 15))
+
+    # recover image of each batch of size 1
+    display_list = [input[0], real[0], prediction[0]]
+    title = ['Input Image', 'Ground Truth', 'Predicted Image']
+
+    for i in range(3):
+        plt.subplot(1, 3, i+1)
+        plt.title(title[i])
+        # Getting the pixel values in the [0, 1] range to plot.
+        plt.imshow(display_list[i] * 0.5 + 0.5)
+        plt.axis('off')
+    plt.show()
 
 def train(model, n_epochs, dataloader):
     """
@@ -141,8 +149,8 @@ def train(model, n_epochs, dataloader):
     
     # Loss function
     
-    adversarial_loss = nn.BCEWithLogitsLoss().to(device)
-    criterionL1 = nn.L1Loss().to(device)
+    adversarial_loss = BCEWithLogitsLoss().to(device)
+    criterionL1 = L1Loss().to(device)
     l = 100 # hyperparamter in front of the L1 regularization
 
     # Optimizers
