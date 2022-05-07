@@ -47,14 +47,40 @@ data_transforms = {
     ]),
 }
 
-def get_train_test_image_names(set ,images_path = images_path):
+def get_train_test_image_names(set, images_path = images_path):
     """
     Description
     -------------
     List names of train and test videos
     Parameters
     -------------
-    set            : name of the current data set used
+    dataset_name   : name of dataset
+    labels_path    : path to datasets 
+    Returns
+    -------------
+    (train_names, val_names) , each of the tuple elements is a list of strings corresponding to images names
+    """
+    images_names = {}
+    set_images_path = os.path.join(images_path, set) 
+    
+    for w in ['train','val']:
+        set_images_path_w = os.path.join(set_images_path, w) 
+        images_names[w] = os.listdir(set_images_path_w)
+    # sort list of names
+    images_names['train'].sort()
+    images_names['val'].sort()
+
+    return images_names
+
+
+def get_train_test_image_names(set, images_path = images_path):
+    """
+    Description
+    -------------
+    List names of train and test videos
+    Parameters
+    -------------
+    dataset_name   : name of dataset
     labels_path    : path to datasets 
     Returns
     -------------
@@ -76,25 +102,24 @@ def get_train_test_image_names(set ,images_path = images_path):
 class ImageSet(Dataset):
     """The current data set."""
 
-    def __init__(self,seti , transform = None, 
-                    val_mode = False ):
+    def __init__(self, dataset_name, transform = None, val_mode = False ):
         """
         Description
         -------------
         Creates dataset class for the training set.
         Parameters
         -------------
-        set                     : dataset name
+        dataset_name            : name of dataset
         transform               : transforms to be applied to the frame (eg. data augmentation)
-        test_mode               : boolean, if true there are no label in the annotation df and in the output of __getitem__
+        val_mode                : boolean, if true there are no label in the annotation df and in the output of __getitem__
         Returns
         -------------
         Torch Dataset for the training set
         """
-        self.set = seti
+        self.dataset_name = dataset_name
         self.transform = transform
         self.val_mode = val_mode
-        self.images_names = get_train_test_image_names(self.set)
+        self.images_names = get_train_test_image_names(self.dataset_name)
 
     def __len__(self):
         if not self.val_mode:
@@ -104,7 +129,7 @@ class ImageSet(Dataset):
 
     def __getitem__(self, index):
         if not self.val_mode:
-            image_path = images_path + '/' + self.set + '/train/' + self.images_names['train'][index] 
+            image_path = images_path + '/' + self.dataset_name + '/train/' + self.images_names['train'][index] 
             image = cv2.imread(image_path)
             w = image.shape[1]
             w = w // 2
@@ -113,7 +138,7 @@ class ImageSet(Dataset):
             real_image = image[:, :w, :]
             # real_image = real_image.reshape((input_image.shape[2],input_image.shape[0],input_image.shape[1]))
         else: 
-            image_path = images_path + '/' + self.set + '/val/' + self.images_names['val'][index] 
+            image_path = images_path + '/' + self.dataset_name + '/val/' + self.images_names['val'][index] 
             image = cv2.imread(image_path)
             w = image.shape[1]
             w = w // 2
@@ -129,7 +154,7 @@ class ImageSet(Dataset):
         return input_image.to(device), real_image.to(device)
 
 
-def train(model,n_epochs,dataloaders):
+def train(model, n_epochs, dataloaders):
         """
         Training of the Pix2Pix model by firstly trainin the generator and then training the discriminator
         """
