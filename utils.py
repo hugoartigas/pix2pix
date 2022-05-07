@@ -18,13 +18,11 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 # set data transformation dictionary for training, validation
 data_transforms = {
     'train': T.Compose([
-        T.ToPILImage(),
         T.ToTensor(),
         T.Resize((286,286)),
         T.RandomCrop((256,256))
     ]),
     'val': T.Compose([
-        T.ToPILImage(),
         T.ToTensor(),
         T.Resize((256,256))
     ])
@@ -109,9 +107,10 @@ def generate_images(model, input, real):
     Plot input, real image and model predictions side by side
     Parameters
     -------------
-    model       : model
+    input       : input image
+    model       : Pix2Pix model
     """
-    prediction = model(input, training=True)
+    prediction = model.generator(input.to(device))
 
     # create figure
     plt.figure(figsize=(15, 15))
@@ -124,7 +123,7 @@ def generate_images(model, input, real):
         plt.subplot(1, 3, i+1)
         plt.title(title[i])
         # Getting the pixel values in the [0, 1] range to plot.
-        plt.imshow(display_list[i] * 0.5 + 0.5)
+        plt.imshow(display_list[i].permute(1,2,0).detach().cpu().numpy() * 0.5 + 0.5)
         plt.axis('off')
     plt.show()
 
@@ -147,19 +146,20 @@ def train(model, n_epochs, dataloader):
     Torch Dataset for the training set
     """
     
-    # Loss function
-    
+    # losses
     adversarial_loss = BCEWithLogitsLoss().to(device)
     criterionL1 = L1Loss().to(device)
-    l = 100 # hyperparamter in front of the L1 regularization
+    l = 100 # L1 regularization
 
-    # Optimizers
+    # optimizers
     optimizer_G = torch.optim.Adam(model.generator.parameters(), lr=0.0002,betas=(0.5, 0.999),eps=1e-07)
     optimizer_D = torch.optim.Adam(model.discriminator.parameters(), lr=0.0002,betas=(0.5, 0.999),eps=1e-07)
 
     since = time.time()
 
+    # go in train mode
     model.train()
+
     for epoch in range(n_epochs):
         print(f'Epoch {epoch + 1}/{n_epochs}')
         print('-' * 10)
