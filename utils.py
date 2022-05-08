@@ -128,7 +128,7 @@ def generate_images(model, input, real):
         plt.axis('off')
     plt.show()
 
-def train(model, n_epochs, dataloader):
+def train(model, n_epochs, dataloaders):
     """
     Training of the Pix2Pix model by firstly trainin the generator and then training the discriminator
     """
@@ -141,7 +141,7 @@ def train(model, n_epochs, dataloader):
     -------------
     model                   : model to train
     n_epochs                : number of epochs to train the model on
-    dataloader              : dataloader to use for training
+    dataloaders             : dataloader to use for training
     Returns
     -------------
     Torch Dataset for the training set
@@ -161,6 +161,8 @@ def train(model, n_epochs, dataloader):
         total_disc_loss = real_loss + generated_loss
         return total_disc_loss
 
+    n = len(dataloaders['train'])
+
     # optimizers
     optimizer_G = torch.optim.Adam(model.generator.parameters(), lr=2e-4, betas=(0.5, 0.999), eps=1e-07)
     optimizer_D = torch.optim.Adam(model.discriminator.parameters(), lr=2e-4, betas=(0.5, 0.999), eps=1e-07)
@@ -174,7 +176,20 @@ def train(model, n_epochs, dataloader):
         print(f'Epoch {epoch + 1}/{n_epochs}')
         print('-' * 10)
 
-        for input, real in Bar(dataloader):
+        if epoch % 5 == 0:
+            # display images
+            input_val, real_val = next(iter(dataloaders['val']))
+            input_val = input_val.to(device)
+            real_val = real_val.to(device)
+            model.eval()
+            generate_images(model = model, input = input_val, real = real_val)
+
+        epoch_gen_total_loss = 0
+        epoch_gen_gan_loss = 0
+        epoch_gen_l1_loss = 0
+        epoch_disc_loss = 0
+
+        for input, real in Bar(dataloaders['train']):
             # send tensors to device
             input = input.to(device)
             real = real.to(device)
@@ -198,10 +213,15 @@ def train(model, n_epochs, dataloader):
             gen_total_loss, gen_gan_loss, gen_l1_loss = generator_loss(disc_generated_output, gen_output, real)
             gen_total_loss.backward()
             optimizer_G.step()
+
+            # update epoch losses
+            epoch_gen_total_loss += gen_total_loss
+            epoch_gen_gan_loss += gen_gan_loss
+            epoch_gen_l1_loss += gen_l1_loss
+            epoch_disc_loss += disc_loss
             
-
-
-        print(f'gen_total_loss: {gen_total_loss:.4f}, gen_gan_loss: {gen_gan_loss:.4f}, gen_l1_loss: {gen_l1_loss:.4f}, disc_loss: {disc_loss:.4f}.')
+        print(f'gen_total_loss: {epoch_gen_total_loss/n:.4f}, gen_gan_loss: {epoch_gen_gan_loss/n:.4f}, gen_l1_loss: {epoch_gen_l1_loss/n:.4f}, disc_loss: {epoch_disc_loss/n:.4f}.')
+            
 
     time_elapsed = time.time() - since
     print(f'Training complete in {time_elapsed // 60:.0f}m {time_elapsed % 60:.0f}s')
