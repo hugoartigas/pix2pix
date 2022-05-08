@@ -33,7 +33,6 @@ class Generator(nn.Module):
         
         # create last layer
         self.last = nn.ConvTranspose2d(in_channels=128, out_channels=3, kernel_size=4, stride=2, padding=1, bias=False)
-        nn.init.normal_(self.last.weight, mean=0.0, std=0.02)
 
     def __create_downsample_layer(self, in_channels, out_channels, kernel_size=4, padding = 1, apply_batchnorm = True):
         """
@@ -43,7 +42,6 @@ class Generator(nn.Module):
         """
         layers = []
         conv_layer = nn.Conv2d(in_channels, out_channels, kernel_size, stride=2, padding=padding, bias=False)
-        nn.init.normal_(conv_layer.weight, mean=0.0, std=0.02)
         layers.append(conv_layer)
         if apply_batchnorm:
             layers.append(nn.BatchNorm2d(out_channels))
@@ -58,7 +56,6 @@ class Generator(nn.Module):
         """
         layers = []
         deconv_layer = nn.ConvTranspose2d(in_channels, out_channels, kernel_size, stride=2, padding=padding, bias=False)
-        nn.init.normal_(deconv_layer.weight, mean=0.0, std=0.02)
         layers.append(deconv_layer)
         layers.append(nn.BatchNorm2d(out_channels))
         if apply_dropout:
@@ -82,7 +79,6 @@ class Generator(nn.Module):
         for down in self.downsample_layers:
             x = down(x)
             skips.append(x)
-            #print('down output shape : ', x.shape)
 
         skips = reversed(skips[:-1])
 
@@ -90,11 +86,9 @@ class Generator(nn.Module):
         for up, skip in zip(self.upsample_layers, skips):
             x = up(x)
             x = torch.cat((x, skip), 1)
-            #print('up output shape : ', x.shape)
 
         # apply last layer
         x = self.last(x)
-        #print('last output shape : ', x.shape)
         x = nn.Tanh()(x)
         
         return x
@@ -114,16 +108,10 @@ class Discriminator(nn.Module):
         self.down1 = self.__create_downsample_layer(6, 64, 4, apply_batchnorm = False)
         self.down2 = self.__create_downsample_layer(64, 128, 4)
         self.down3 = self.__create_downsample_layer(128, 256, 4)
-
+        # instantiate other layers
         self.conv = nn.Conv2d(in_channels=256, out_channels=512, kernel_size=4, stride=1, bias=False)
-        nn.init.normal_(self.conv.weight, mean=0.0, std=0.02)
-
         self.batchnorm = nn.BatchNorm2d(512)
-
         self.last = nn.Conv2d(in_channels=512, out_channels=1, kernel_size=4, stride=1)
-        nn.init.normal_(self.last.weight, mean=0.0, std=0.02)
-        nn.init.constant_(self.last.bias, 0.0)
-
 
     def __create_downsample_layer(self, in_channels, out_channels, kernel_size=4, padding = 1, apply_batchnorm = True):
         """
@@ -133,11 +121,10 @@ class Discriminator(nn.Module):
         """
         layers = []
         conv_layer = nn.Conv2d(in_channels, out_channels, kernel_size, stride=2, padding=padding, bias=False)
-        nn.init.normal_(conv_layer.weight, mean=0.0, std=0.02)
         layers.append(conv_layer)
         if apply_batchnorm:
             layers.append(nn.BatchNorm2d(out_channels))
-        layers.append(nn.LeakyReLU())
+        layers.append(nn.LeakyReLU(0.2))
         return nn.Sequential(*layers)
 
     def set_requires_grad(self, bool):
@@ -155,27 +142,17 @@ class Discriminator(nn.Module):
         input               : input image, tensor of shape (batch_size, c, w, h)
         real                : real target image, tensor of shape (batch_size, c, w, h)
         """
-        
         x = torch.cat([input, real], 1) # concatenate along channels
-        #print('output dim : ', x.shape)
         x = self.down1(x)
-        #print('output dim : ', x.shape)
         x = self.down2(x)
-        #print('output dim : ', x.shape)
         x = self.down3(x)
-        #print('output dim : ', x.shape)
         x = nn.ZeroPad2d(1)(x)
-        #print('output dim : ', x.shape)
         x = self.conv(x)
-        #print('output dim : ', x.shape)
         x = self.batchnorm(x)
-        #print('output dim : ', x.shape)
         x = nn.LeakyReLU()(x)
-        #print('output dim : ', x.shape)
         x = nn.ZeroPad2d(1)(x)
-        #print('output dim : ', x.shape)
         x = self.last(x)
-        #print('output dim : ', x.shape)
+
         return x
 
 class Pix2Pix(nn.Module):
@@ -186,3 +163,18 @@ class Pix2Pix(nn.Module):
         super(Pix2Pix, self).__init__()
         self.generator = Generator()
         self.discriminator = Discriminator()
+        # intialize weights
+        self.generator = self.generator.apply(self._weights_init)
+        self.discrimator = self.discriminator.apply(self._weights_init)
+
+    def _weights_init(self, m):
+        """
+        Description
+        -------------
+        Weights initialization method
+        """
+        if isinstance(m, (nn.Conv2d, nn.ConvTranspose2d)):
+            torch.nn.init.normal_(m.weight, 0.0, 0.02)
+        if isinstance(m, nn.BatchNorm2d):
+            torch.nn.init.normal_(m.weight, 0.0, 0.02)
+            torch.nn.init.constant_(m.bias, 0)

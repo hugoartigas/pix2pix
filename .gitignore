@@ -1,4 +1,4 @@
-# Ignore node_modules folder
 __pycache__
-images
+images/*
 .ipynb_checkpoints
+weights/*

@@ -1,8 +1,7 @@
-from barbar import Bar
-import cv2
 import matplotlib.pyplot as plt
 import numpy as np
 import os
+from PIL import Image
 import time
 import torch
 from torch.autograd import Variable
@@ -12,6 +11,10 @@ from torch.nn import BCEWithLogitsLoss, L1Loss
 
 # set paths
 images_path = os.path.join(os.getcwd(), 'images') 
+weights_path = os.path.join(os.getcwd(), 'weights') 
+# create folders if they do not already exist
+if not os.path.exists(images_path): os.makedirs(images_path)
+if not os.path.exists(weights_path): os.makedirs(weights_path)
 
 # set device
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -19,13 +22,11 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 # set data transformation dictionary for training, validation
 data_transforms = {
     'train': T.Compose([
-        T.ToTensor(),
-        T.Resize((286,286)),
-        T.RandomCrop((256,256))
+        # to complete, for now it does not seem to work very well so I commented it
+        #T.Resize((286,286)),
+        #T.RandomCrop((256,256))
     ]),
     'val': T.Compose([
-        T.ToTensor(),
-        T.Resize((256,256))
     ])
 }
 
@@ -85,19 +86,18 @@ class ImageDataset(Dataset):
         # recover image path
         image_path =  self.images_folder_path + '/' + self.images_names[index] 
         # read image
-        image = cv2.imread(image_path)
-        w = image.shape[1]
-        w = w // 2
-        # recover input and real image
-        input_image = image[:, w:, :]
-        real_image = image[:, :w, :]
-        # apply transformation
+        image = Image.open(image_path)
+        # convert to tensor
+        image = T.functional.to_tensor(image)
+        # recover real and input image
+        image_width = image.shape[2]
+        real_image = image[:, :, : image_width // 2]
+        input_image = image[:, :, image_width // 2 :]
+
         if self.transform:
-            input_image = self.transform(input_image)
+            # apply data transformation
             real_image = self.transform(real_image)
-        # rescale between -1 and 1 (linear mapping [0,1] to [-1,1])
-        input_image = (input_image / 0.5) -  1
-        real_image = (real_image / 0.5) - 1
+            input_image = self.transform(input_image)
 
         return input_image, real_image
 
@@ -114,7 +114,7 @@ def generate_images(model, input, real):
     prediction = model.generator(input.to(device))
 
     # create figure
-    plt.figure(figsize=(15, 15))
+    plt.figure(figsize=(10,5))
 
     # recover image of each batch of size 1
     display_list = [input[0], real[0], prediction[0]]
@@ -123,12 +123,13 @@ def generate_images(model, input, real):
     for i in range(3):
         plt.subplot(1, 3, i+1)
         plt.title(title[i])
-        # Getting the pixel values in the [0, 1] range to plot.
-        plt.imshow(display_list[i].permute(1,2,0).detach().cpu().numpy() * 0.5 + 0.5)
+        # Getting the pixel values in the [0, 1] range to plot
+        to_display = np.clip(display_list[i].permute(1,2,0).detach().cpu().numpy(), 0, 1)
+        plt.imshow(to_display)
         plt.axis('off')
     plt.show()
 
-def train(model, n_epochs, dataloaders):
+def train(model, n_epochs, display_step, save_step, dataloaders, lr = 2e-4, lbd = 200):
     """
     Training of the Pix2Pix model by firstly trainin the generator and then training the discriminator
     """
@@ -141,31 +142,42 @@ def train(model, n_epochs, dataloaders):
     -------------
     model                   : model to train
     n_epochs                : number of epochs to train the model on
+    display_step            : number of epochs between two displays of images
+    save_step               : number of epochs between two saves of the model
     dataloaders             : dataloader to use for training
+    lr                      : learning rate
+    lbd                     : l1 loss weight
     Returns
     -------------
     Torch Dataset for the training set
     """
-    # set weight of l1 loss within generator loss
-    lbd = 100
+    def compute_gen_loss(real_images, conditioned_images):
+        """ Compute generator loss. """
+        # compute adversarial loss
+        fake_images = model.generator(conditioned_images)
+        disc_logits = model.discriminator(fake_images, conditioned_images)
+        adversarial_loss = BCEWithLogitsLoss()(disc_logits, torch.ones_like(disc_logits))
+        # compute reconstruction loss
+        recon_loss = L1Loss()(fake_images, real_images)
+        return adversarial_loss + lbd * recon_loss, adversarial_loss, recon_loss
 
-    def generator_loss(disc_generated_output, gen_output, real):
-        gan_loss = torch.nn.BCEWithLogitsLoss()(disc_generated_output, Variable(torch.ones_like(disc_generated_output)))
-        l1_loss = torch.nn.L1Loss()(real, gen_output)
-        total_gen_loss = gan_loss + (lbd * l1_loss)
-        return total_gen_loss, gan_loss, l1_loss
+    def compute_disc_loss(real_images, conditioned_images):
+        """ Compute discriminator loss. """
+        fake_images = model.generator(conditioned_images).detach()
+        fake_logits = model.discriminator(fake_images, conditioned_images)
 
-    def discriminator_loss(disc_real_output, disc_generated_output):
-        real_loss = torch.nn.BCEWithLogitsLoss()(disc_real_output, Variable(torch.ones_like(disc_real_output)))
-        generated_loss = torch.nn.BCEWithLogitsLoss()(disc_generated_output, Variable(torch.zeros_like(disc_generated_output)))
-        total_disc_loss = real_loss + generated_loss
-        return total_disc_loss
+        real_logits = model.discriminator(real_images, conditioned_images)
 
+        fake_loss = BCEWithLogitsLoss()(fake_logits, torch.zeros_like(fake_logits))
+        real_loss = BCEWithLogitsLoss()(real_logits, torch.ones_like(real_logits))
+        return (real_loss + fake_loss) / 2
+
+    # compute dataset length
     n = len(dataloaders['train'])
 
-    # optimizers
-    optimizer_G = torch.optim.Adam(model.generator.parameters(), lr=2e-4, betas=(0.5, 0.999), eps=1e-07)
-    optimizer_D = torch.optim.Adam(model.discriminator.parameters(), lr=2e-4, betas=(0.5, 0.999), eps=1e-07)
+    # initalize optimizers
+    optimizer_G = torch.optim.Adam(model.generator.parameters(), lr=lr)
+    optimizer_D = torch.optim.Adam(model.discriminator.parameters(), lr=lr)
 
     since = time.time()
 
@@ -176,53 +188,54 @@ def train(model, n_epochs, dataloaders):
         print(f'Epoch {epoch + 1}/{n_epochs}')
         print('-' * 10)
 
-        if epoch % 5 == 0:
-            # display images
-            input_val, real_val = next(iter(dataloaders['val']))
-            input_val = input_val.to(device)
-            real_val = real_val.to(device)
+        if epoch % display_step == 0:
+            # switch to eval mode and disable grad tracking
             model.eval()
-            generate_images(model = model, input = input_val, real = real_val)
+            with torch.no_grad():
+                input_val, real_val = next(iter(dataloaders['val']))
+                generate_images(model = model, input = input_val, real = real_val)
+            # switch back to train mode
+            model.train()
 
-        epoch_gen_total_loss = 0
-        epoch_gen_gan_loss = 0
-        epoch_gen_l1_loss = 0
+        # set epoch losses to 0
+        epoch_gen_loss = 0
+        epoch_gan_loss = 0
+        epoch_l1_loss = 0
         epoch_disc_loss = 0
 
-        for input, real in Bar(dataloaders['train']):
+        for input, real in dataloaders['train']:
             # send tensors to device
             input = input.to(device)
             real = real.to(device)
 
-            # we first update discriminator
-            model.discriminator.set_requires_grad(True)
+            # generator step
+            optimizer_G.zero_grad()
+            gen_loss, gan_loss, l1_loss = compute_gen_loss(real, input)
+            gen_loss.backward()
+            optimizer_G.step()
+
+            # discriminator step
             optimizer_D.zero_grad()
-            gen_output = model.generator(input)
-            disc_real_output = model.discriminator(input, real)
-            disc_generated_output = model.discriminator(input, gen_output)
-            disc_loss = discriminator_loss(disc_real_output, disc_generated_output)
+            disc_loss = compute_disc_loss(real, input)
             disc_loss.backward()
             optimizer_D.step()
 
-            # and then generator
-            model.discriminator.set_requires_grad(False)
-            optimizer_G.zero_grad()
-            gen_output = model.generator(input)
-            disc_real_output = model.discriminator(input, real)
-            disc_generated_output = model.discriminator(input, gen_output)
-            gen_total_loss, gen_gan_loss, gen_l1_loss = generator_loss(disc_generated_output, gen_output, real)
-            gen_total_loss.backward()
-            optimizer_G.step()
-
             # update epoch losses
-            epoch_gen_total_loss += gen_total_loss
-            epoch_gen_gan_loss += gen_gan_loss
-            epoch_gen_l1_loss += gen_l1_loss
+            epoch_gen_loss += gen_loss
+            epoch_gan_loss += gan_loss
+            epoch_l1_loss += l1_loss
             epoch_disc_loss += disc_loss
             
-        print(f'gen_total_loss: {epoch_gen_total_loss/n:.4f}, gen_gan_loss: {epoch_gen_gan_loss/n:.4f}, gen_l1_loss: {epoch_gen_l1_loss/n:.4f}, disc_loss: {epoch_disc_loss/n:.4f}.')
-            
+        # print losses
+        print(f'gen_loss: {epoch_gen_loss/n:.4f}, gan_loss: {epoch_gan_loss/n:.4f}, l1_loss: {epoch_l1_loss/n:.4f}, disc_loss: {epoch_disc_loss/n:.4f}.')
+
+        if epoch % save_step ==0 and epoch != 0:
+            # save model weights
+            print('saving model weights ...')
+            torch.save(model.state_dict(), weights_path + '/' + str(epoch) + '.pkl')
+
+        # line break for better readability
+        print('\n')
 
     time_elapsed = time.time() - since
     print(f'Training complete in {time_elapsed // 60:.0f}m {time_elapsed % 60:.0f}s')
-
