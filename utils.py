@@ -26,8 +26,8 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 data_transforms = {
     'train': T.Compose([
         # to complete, for now it does not seem to work very well so I commented it
-        #T.Resize((286,286)),
-        #T.RandomCrop((256,256))
+        T.Resize((286,286)),
+        T.RandomCrop((256,256))
     ]),
     'val': T.Compose([
     ])
