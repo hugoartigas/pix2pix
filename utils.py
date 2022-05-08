@@ -2,6 +2,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import os
 from PIL import Image
+import pickle
 import time
 import torch
 from torch.autograd import Variable
@@ -12,9 +13,11 @@ from torch.nn import BCEWithLogitsLoss, L1Loss
 # set paths
 images_path = os.path.join(os.getcwd(), 'images') 
 weights_path = os.path.join(os.getcwd(), 'weights') 
+history_path = os.path.join(os.getcwd(), 'history') 
 # create folders if they do not already exist
 if not os.path.exists(images_path): os.makedirs(images_path)
 if not os.path.exists(weights_path): os.makedirs(weights_path)
+if not os.path.exists(history_path): os.makedirs(history_path)
 
 # set device
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -129,7 +132,7 @@ def generate_images(model, input, real):
         plt.axis('off')
     plt.show()
 
-def train(model, n_epochs, display_step, save_step, dataloaders, lr = 2e-4, lbd = 200):
+def train(model, n_epochs, display_step, save_step, dataloaders, filename, lr = 2e-4, lbd = 200):
     """
     Training of the Pix2Pix model by firstly trainin the generator and then training the discriminator
     """
@@ -145,11 +148,12 @@ def train(model, n_epochs, display_step, save_step, dataloaders, lr = 2e-4, lbd 
     display_step            : number of epochs between two displays of images
     save_step               : number of epochs between two saves of the model
     dataloaders             : dataloader to use for training
+    filename                : string, a filename to give to weights
     lr                      : learning rate
     lbd                     : l1 loss weight
     Returns
     -------------
-    Torch Dataset for the training set
+    History of training (dict)
     """
     def compute_gen_loss(real_images, conditioned_images):
         """ Compute generator loss. """
@@ -179,23 +183,23 @@ def train(model, n_epochs, display_step, save_step, dataloaders, lr = 2e-4, lbd 
     optimizer_G = torch.optim.Adam(model.generator.parameters(), lr=lr)
     optimizer_D = torch.optim.Adam(model.discriminator.parameters(), lr=lr)
 
+    # initialize timer
     since = time.time()
 
-    # go in train mode
+    # switch to eval mode and disable grad tracking
+    model.eval()
+    with torch.no_grad():
+        input_val, real_val = next(iter(dataloaders['val']))
+        generate_images(model = model, input = input_val, real = real_val)
+    # switch back to train mode
     model.train()
+
+    # instantiate history array
+    history = {'gen_loss' : [], 'gan_loss' : [], 'l1_loss' : [], 'disc_loss' : []}
 
     for epoch in range(n_epochs):
         print(f'Epoch {epoch + 1}/{n_epochs}')
         print('-' * 10)
-
-        if epoch % display_step == 0:
-            # switch to eval mode and disable grad tracking
-            model.eval()
-            with torch.no_grad():
-                input_val, real_val = next(iter(dataloaders['val']))
-                generate_images(model = model, input = input_val, real = real_val)
-            # switch back to train mode
-            model.train()
 
         # set epoch losses to 0
         epoch_gen_loss = 0
@@ -228,14 +232,69 @@ def train(model, n_epochs, display_step, save_step, dataloaders, lr = 2e-4, lbd 
             
         # print losses
         print(f'gen_loss: {epoch_gen_loss/n:.4f}, gan_loss: {epoch_gan_loss/n:.4f}, l1_loss: {epoch_l1_loss/n:.4f}, disc_loss: {epoch_disc_loss/n:.4f}.')
+        history['gen_loss'].append(epoch_gen_loss.item()/n)
+        history['gan_loss'].append(epoch_gan_loss.item()/n)
+        history['l1_loss'].append(epoch_l1_loss.item()/n)
+        history['disc_loss'].append(epoch_disc_loss.item()/n)
 
-        if epoch % save_step ==0 and epoch != 0:
+
+        if (epoch + 1) % display_step == 0:
+            # switch to eval mode and disable grad tracking
+            model.eval()
+            with torch.no_grad():
+                input_val, real_val = next(iter(dataloaders['val']))
+                generate_images(model = model, input = input_val, real = real_val)
+            # switch back to train mode
+            model.train()
+
+        if (epoch + 1) % save_step ==0:
             # save model weights
             print('saving model weights ...')
-            torch.save(model.state_dict(), weights_path + '/' + str(epoch) + '.pkl')
+            torch.save(model.state_dict(), weights_path + '/' + filename + '_ep' + str(epoch) + '.pkl')
 
         # line break for better readability
         print('\n')
 
     time_elapsed = time.time() - since
     print(f'Training complete in {time_elapsed // 60:.0f}m {time_elapsed % 60:.0f}s')
+
+    return history
+
+
+def plot_and_save_history(history, filename, title = None):
+    """
+    Description
+    -------------
+    Plots and saves history
+    Parameters
+    -------------
+    history     : a dictionary of metrics to plot with keys 'gen_loss', 'gan_loss', 'l1_loss' and 'disc_loss'
+    filename    : string, a filename 
+    title       : title for the plot
+    """
+
+    # save history 
+    history_file = open(history_path + '/' + filename + '.pkl', "wb")
+    pickle.dump(history, history_file)
+    history_file.close()
+
+    fig, axs = plt.subplots(2, 2, figsize=(8,7))
+
+    colors = ['blue', 'green', 'red', 'purple']
+
+    # plot
+    for i, ax in enumerate(axs.reshape(-1)):
+        ax.grid()
+        ax.set_xlabel('epoch')
+        ylab = list(history.keys())[i]
+        ax.set_ylabel(ylab)
+        ax.plot(history[ylab], color = colors[i])
+
+    # add title
+    if title:
+        plt.subplots_adjust(wspace=0.5)
+        plt.suptitle(title)
+    
+    # save plot and show
+    plt.savefig(history_path + '/' + filename + '.png')
+    plt.show()
