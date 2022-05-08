@@ -5,6 +5,7 @@ import numpy as np
 import os
 import time
 import torch
+from torch.autograd import Variable
 from torch.utils.data import Dataset, DataLoader
 import torchvision.transforms as T
 from torch.nn import BCEWithLogitsLoss, L1Loss
@@ -145,15 +146,24 @@ def train(model, n_epochs, dataloader):
     -------------
     Torch Dataset for the training set
     """
-    
-    # losses
-    adversarial_loss = BCEWithLogitsLoss().to(device)
-    criterionL1 = L1Loss().to(device)
-    l = 100 # L1 regularization
+    # set weight of l1 loss within generator loss
+    lbd = 100
+
+    def generator_loss(disc_generated_output, gen_output, real):
+        gan_loss = torch.nn.BCEWithLogitsLoss()(disc_generated_output, Variable(torch.ones_like(disc_generated_output)))
+        l1_loss = torch.nn.L1Loss()(real, gen_output)
+        total_gen_loss = gan_loss + (lbd * l1_loss)
+        return total_gen_loss, gan_loss, l1_loss
+
+    def discriminator_loss(disc_real_output, disc_generated_output):
+        real_loss = torch.nn.BCEWithLogitsLoss()(disc_real_output, Variable(torch.ones_like(disc_real_output)))
+        generated_loss = torch.nn.BCEWithLogitsLoss()(disc_generated_output, Variable(torch.zeros_like(disc_generated_output)))
+        total_disc_loss = real_loss + generated_loss
+        return total_disc_loss
 
     # optimizers
-    optimizer_G = torch.optim.Adam(model.generator.parameters(), lr=0.0002,betas=(0.5, 0.999),eps=1e-07)
-    optimizer_D = torch.optim.Adam(model.discriminator.parameters(), lr=0.0002,betas=(0.5, 0.999),eps=1e-07)
+    optimizer_G = torch.optim.Adam(model.generator.parameters(), lr=2e-4, betas=(0.5, 0.999), eps=1e-07)
+    optimizer_D = torch.optim.Adam(model.discriminator.parameters(), lr=2e-4, betas=(0.5, 0.999), eps=1e-07)
 
     since = time.time()
 
@@ -164,56 +174,35 @@ def train(model, n_epochs, dataloader):
         print(f'Epoch {epoch + 1}/{n_epochs}')
         print('-' * 10)
 
-        running_loss = 0.0
-        running_gen_loss = 0.0
-        running_discr_loss = 0.0
-        # iterate over data
-        for inputs, reals in Bar(dataloader):
-            inputs = inputs.to(device)
-            reals = reals.to(device)
+        for input, real in Bar(dataloader):
+            # send tensors to device
+            input = input.to(device)
+            real = real.to(device)
 
-            # zero the parameter gradients
-            optimizer_G.zero_grad()
+            # we first update discriminator
+            model.discriminator.set_requires_grad(True)
             optimizer_D.zero_grad()
-        
-            # -----------------
-            #  Train Generator
-            # -----------------
-
-            optimizer_G.zero_grad()
-
-            # Generate a batch of images
-            gen_imgs = model.generator(inputs).to(device)
-            # Loss measures generator's ability to fool the discriminator
-            discrs = model.discriminator(gen_imgs,inputs).to(device)
-            valid = torch.ones_like(discrs).to(device)
-            fake = torch.zeros_like(discrs).to(device)
-            g_loss = adversarial_loss(discrs, valid) + l*criterionL1(gen_imgs,reals)
-
-            g_loss.backward()
-            optimizer_G.step()
-            running_gen_loss += g_loss.item()
-
-            # ---------------------
-            #  Train Discriminator
-            # ---------------------
-
-            optimizer_D.zero_grad()
-
-            # Measure discriminator's ability to classify real from generated samples
-            real_loss = adversarial_loss(model.discriminator(reals,inputs), valid)
-            fake_loss = adversarial_loss(model.discriminator(gen_imgs.detach(),inputs), fake)
-            d_loss = real_loss + fake_loss
-
-            d_loss.backward()
+            gen_output = model.generator(input)
+            disc_real_output = model.discriminator(input, real)
+            disc_generated_output = model.discriminator(input, gen_output)
+            disc_loss = discriminator_loss(disc_real_output, disc_generated_output)
+            disc_loss.backward()
             optimizer_D.step()
-            running_discr_loss += d_loss.item()
-            # statistics
-            running_loss += d_loss.item()
 
-    
+            # and then generator
+            model.discriminator.set_requires_grad(False)
+            optimizer_G.zero_grad()
+            gen_output = model.generator(input)
+            disc_real_output = model.discriminator(input, real)
+            disc_generated_output = model.discriminator(input, gen_output)
+            gen_total_loss, gen_gan_loss, gen_l1_loss = generator_loss(disc_generated_output, gen_output, real)
+            gen_total_loss.backward()
+            optimizer_G.step()
+            
 
-        print(f'Loss: {running_loss:.4f}, generator loss: {running_gen_loss:.4f}, discriminator loss: {running_discr_loss:.4f}.')
+
+        print(f'gen_total_loss: {gen_total_loss:.4f}, gen_gan_loss: {gen_gan_loss:.4f}, gen_l1_loss: {gen_l1_loss:.4f}, disc_loss: {disc_loss:.4f}.')
 
     time_elapsed = time.time() - since
     print(f'Training complete in {time_elapsed // 60:.0f}m {time_elapsed % 60:.0f}s')
+
