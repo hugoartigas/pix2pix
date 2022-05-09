@@ -101,11 +101,9 @@ class ImageDataset(Dataset):
             # apply data transformation
             real_image = self.transform(real_image)
             input_image = self.transform(input_image)
-
-        if torch.rand(()) > 0.5:
             # random mirroring
-            input_image = torch.flipud(input_image)
-            real_image = torch.flipud(real_image)
+            input_image = torch.flip(input_image, [2])
+            real_image = torch.flip(real_image, [2])
 
         return input_image, real_image
 
