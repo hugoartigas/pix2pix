@@ -14,10 +14,12 @@ from torch.nn import BCEWithLogitsLoss, L1Loss, MSELoss
 images_path = os.path.join(os.getcwd(), 'images') 
 weights_path = os.path.join(os.getcwd(), 'weights') 
 history_path = os.path.join(os.getcwd(), 'history') 
+plots_path = os.path.join(os.getcwd(), 'plots') 
 # create folders if they do not already exist
 if not os.path.exists(images_path): os.makedirs(images_path)
 if not os.path.exists(weights_path): os.makedirs(weights_path)
 if not os.path.exists(history_path): os.makedirs(history_path)
+if not os.path.exists(plots_path): os.makedirs(plots_path)
 
 # set device
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
