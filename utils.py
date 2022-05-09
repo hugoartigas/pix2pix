@@ -8,7 +8,7 @@ import torch
 from torch.autograd import Variable
 from torch.utils.data import Dataset, DataLoader
 import torchvision.transforms as T
-from torch.nn import BCEWithLogitsLoss, L1Loss
+from torch.nn import BCEWithLogitsLoss, L1Loss, MSELoss
 
 # set paths
 images_path = os.path.join(os.getcwd(), 'images') 
@@ -102,6 +102,11 @@ class ImageDataset(Dataset):
             real_image = self.transform(real_image)
             input_image = self.transform(input_image)
 
+        if torch.rand(()) > 0.5:
+            # random mirroring
+            input_image = torch.flipud(input_image)
+            real_image = torch.flipud(real_image)
+
         return input_image, real_image
 
 def generate_images(model, input, real):
@@ -132,7 +137,7 @@ def generate_images(model, input, real):
         plt.axis('off')
     plt.show()
 
-def train(model, n_epochs, display_step, save_step, dataloaders, filename, lr = 2e-4, lbd = 200):
+def train(model, n_epochs, display_step, save_step, dataloaders, filename, lr = 2e-4, lbd = 200, loss_l1_true = True, loss_l2_true = False, loss_cGAN_true = True):
     """
     Training of the Pix2Pix model by firstly trainin the generator and then training the discriminator
     """
@@ -150,7 +155,10 @@ def train(model, n_epochs, display_step, save_step, dataloaders, filename, lr = 
     dataloaders             : dataloader to use for training
     filename                : string, a filename to give to weights
     lr                      : learning rate
-    lbd                     : l1 loss weight
+    lbd                     : l1 and l2 loss weight
+    loss_l1_true            : bool to take into account l1 loss in the generator loss
+    loss_l2_true            : bool to take into account l2 loss in the generator loss
+    loss_cGAN_true          : bool to take into account cGAN loss in the generator loss
     Returns
     -------------
     History of training (dict)
@@ -161,9 +169,13 @@ def train(model, n_epochs, display_step, save_step, dataloaders, filename, lr = 
         fake_images = model.generator(conditioned_images)
         disc_logits = model.discriminator(fake_images, conditioned_images)
         adversarial_loss = BCEWithLogitsLoss()(disc_logits, torch.ones_like(disc_logits))
-        # compute reconstruction loss
-        recon_loss = L1Loss()(fake_images, real_images)
-        return adversarial_loss + lbd * recon_loss, adversarial_loss, recon_loss
+        # compute reconstruction loss l1
+        recon_loss_l1 = L1Loss()(fake_images, real_images)
+        # compute reconstruction loss l2
+        recon_loss_l2 = MSELoss()(fake_images, real_images)
+        # compute the generator loss
+        loss_gen = loss_cGAN_true*adversarial_loss + lbd * (loss_l1_true*recon_loss_l1+loss_l2_true*recon_loss_l2)
+        return loss_gen , adversarial_loss, recon_loss_l1, recon_loss_l2
 
     def compute_disc_loss(real_images, conditioned_images):
         """ Compute discriminator loss. """
@@ -195,7 +207,7 @@ def train(model, n_epochs, display_step, save_step, dataloaders, filename, lr = 
     model.train()
 
     # instantiate history array
-    history = {'gen_loss' : [], 'gan_loss' : [], 'l1_loss' : [], 'disc_loss' : []}
+    history = {'gen_loss' : [], 'gan_loss' : [], 'l1_loss' : [],'l2_loss': [], 'disc_loss' : []}
 
     for epoch in range(n_epochs):
         print(f'Epoch {epoch + 1}/{n_epochs}')
@@ -205,6 +217,7 @@ def train(model, n_epochs, display_step, save_step, dataloaders, filename, lr = 
         epoch_gen_loss = 0
         epoch_gan_loss = 0
         epoch_l1_loss = 0
+        epoch_l2_loss = 0
         epoch_disc_loss = 0
 
         for input, real in dataloaders['train']:
@@ -214,7 +227,7 @@ def train(model, n_epochs, display_step, save_step, dataloaders, filename, lr = 
 
             # generator step
             optimizer_G.zero_grad()
-            gen_loss, gan_loss, l1_loss = compute_gen_loss(real, input)
+            gen_loss, gan_loss, l1_loss, l2_loss = compute_gen_loss(real, input)
             gen_loss.backward()
             optimizer_G.step()
 
@@ -228,6 +241,7 @@ def train(model, n_epochs, display_step, save_step, dataloaders, filename, lr = 
             epoch_gen_loss += gen_loss
             epoch_gan_loss += gan_loss
             epoch_l1_loss += l1_loss
+            epoch_l2_loss += l2_loss
             epoch_disc_loss += disc_loss
             
         # print losses
@@ -235,6 +249,7 @@ def train(model, n_epochs, display_step, save_step, dataloaders, filename, lr = 
         history['gen_loss'].append(epoch_gen_loss.item()/n)
         history['gan_loss'].append(epoch_gan_loss.item()/n)
         history['l1_loss'].append(epoch_l1_loss.item()/n)
+        history['l2_loss'].append(epoch_l2_loss.item()/n)
         history['disc_loss'].append(epoch_disc_loss.item()/n)
 
 
@@ -242,7 +257,6 @@ def train(model, n_epochs, display_step, save_step, dataloaders, filename, lr = 
             # switch to eval mode and disable grad tracking
             model.eval()
             with torch.no_grad():
-                input_val, real_val = next(iter(dataloaders['val']))
                 generate_images(model = model, input = input_val, real = real_val)
             # switch back to train mode
             model.train()
@@ -257,10 +271,16 @@ def train(model, n_epochs, display_step, save_step, dataloaders, filename, lr = 
 
     time_elapsed = time.time() - since
     print(f'Training complete in {time_elapsed // 60:.0f}m {time_elapsed % 60:.0f}s')
-
+    
+    # save history 
+    history_file = open(history_path + '/' + filename + '.pkl', "wb")
+    pickle.dump(history, history_file)
+    history_file.close()
+    
     return history
 
-
+    
+    
 def plot_and_save_history(history, filename, title = None):
     """
     Description
