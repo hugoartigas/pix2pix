@@ -2,9 +2,7 @@
 
 *Authors :* Antonin Vidon, Hugo Artigas and Waël Boukhobza
 
-This repo contains our attempt to replicate the results of [1] on the pix2pix dataset 'Facades'. We conduct ablation experiments on data augmentation, choice of loss, batch size, ... We then constitute our own training dataset from [Country211 data](https://openaipublic.azureedge.net/clip/data/country211.tgz). # ajouter les bails faits par wael (pretraining, etc)
-
-[1] Philip Isola and Jun-Yan Zhu, Tinghui Zhou and Alexei A. Efros, Image-to-Image Translation with Conditional Adversarial Networks, arvix:https://arxiv.org/abs/1611.07004, doi: 10.48550/ARXIV.1611.07004
+This repo contains our attempt to replicate the results of pix2pix on the 'Facades' dataset. We conduct ablation experiments on data augmentation, choice of loss, batch size, ... We then constitute our own training dataset from [Country211 data](https://openaipublic.azureedge.net/clip/data/country211.tgz). # ajouter les bails faits par wael (pretraining, etc)
 
 
 ## Data
