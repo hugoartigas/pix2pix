@@ -1,13 +1,21 @@
-# Image-to-Image Translation with Conditional Adversarial Networks
+# Image-to-Image Translation with cGANs
 
-## Download Pix2Pix data
+*Authors :* Antonin Vidon, Hugo Artigas and Waël Boukhobza
+
+This repo contains our attempt to replicate the results of [1] on the pix2pix dataset 'Facades'. We conduct ablation experiments on data augmentation, choice of loss, batch size, ... We then constitute our own training dataset from [Country211 data](https://openaipublic.azureedge.net/clip/data/country211.tgz). # ajouter les bails faits par wael (pretraining, etc)
+
+[1] Philip Isola and Jun-Yan Zhu, Tinghui Zhou and Alexei A. Efros, Image-to-Image Translation with Conditional Adversarial Networks, arvix:https://arxiv.org/abs/1611.07004, doi: 10.48550/ARXIV.1611.07004
+
+
+## Data
+
+### Download pix2pix dataset
 
 ```
-python download_data.py --dataset_name = 'facades' #
+python download_data.py --dataset_name = 'facades' # download facades dataset
 ```
 
 ## Top-level directory layout
-
 
 ```./
 ├── history # training history saved into dictionaries and plots
@@ -21,7 +29,7 @@ python download_data.py --dataset_name = 'facades' #
 ├── ablation_batchsize_facades.ipynb # ablation experiments with batch size on Facades
 ├── ablation_da_facades.ipynb # ablation experiments with data augmentation on Facades
 ├── ablation_loss_facades.ipynb # ablation experiments with losses on Facades
-├── download_data.py # script to download any data set from http://efrosgans.eecs.berkeley.edu/pix2pix/datasets/
+├── download_data.py # script to download pix2pix datasets
 ├── model.py # our Pix2Pix model implementation
 ├── train_da_facades.ipynb # training notebook with data augmentation on Facades
 ├── train_noda_facades.ipynb # training notebook without data augmentation on Facades
@@ -30,10 +38,17 @@ python download_data.py --dataset_name = 'facades' #
 └── requirements.txt
 ```
 
-## Generator architecture
+
+## Architecture
+
+### Generator
 
 ![generator](./figures/generator.png)
 
-## Discriminator architecture
+### Discriminator
 
 ![discriminator](./figures/discriminator.png)
+
+## Model weights
+
+[Link to model weights](https://drive.google.com/drive/folders/1x1r_KKVbPvnI8zm7YMAIR6RPV_L4ASt4?usp=sharing) (lionmail only).
