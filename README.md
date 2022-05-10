@@ -16,6 +16,7 @@ python download_data.py --dataset_name = 'facades' # download facades dataset
 ## Top-level directory layout
 
 ```./
+├── figures # architecture diagrams
 ├── history # training history saved into dictionaries and plots
 ├── images # data folder
 │   └── facades # dataset name
@@ -48,6 +49,10 @@ python download_data.py --dataset_name = 'facades' # download facades dataset
 ### Discriminator
 
 ![discriminator](./figures/discriminator.png)
+
+## Results
+
+![da_no_val](./plots/plot_da_images.png)
 
 ## Model weights
 
