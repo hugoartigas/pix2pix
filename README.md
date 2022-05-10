@@ -2,7 +2,7 @@
 
 *Authors :* Antonin Vidon, Hugo Artigas and Waël Boukhobza
 
-This repo contains our attempt to replicate the results of pix2pix on the 'Facades' dataset. We conduct ablation experiments on data augmentation, choice of loss, batch size, ... We then constitute our own training dataset from [Country211 data](https://openaipublic.azureedge.net/clip/data/country211.tgz). # ajouter les bails faits par wael (pretraining, etc)
+This repo contains our attempt to replicate the results of pix2pix on the 'Facades' dataset. We conduct ablation experiments on data augmentation, choice of loss, batch size, ... We then constitute our own training dataset from [Country211](https://openaipublic.azureedge.net/clip/data/country211.tgz). # ajouter les bails faits par wael (pretraining, etc)
 
 
 ## Data
@@ -50,3 +50,8 @@ python download_data.py --dataset_name = 'facades' # download facades dataset
 ## Model weights
 
 [Link to model weights](https://drive.google.com/drive/folders/1x1r_KKVbPvnI8zm7YMAIR6RPV_L4ASt4?usp=sharing) (lionmail only).
+
+
+## Requirements
+
+See ./requirements.txt
