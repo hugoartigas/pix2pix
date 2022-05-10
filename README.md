@@ -23,6 +23,8 @@ python download_data.py --dataset_name = 'facades' # download facades dataset
 │       |── train
 │       └── val
 ├── plots
+├── report
+│   └── E6691_2022Spring_ABVZ_report_av3023_ha2605_wab2138.pdf # project report
 ├── weights
 ├── ablation_batchsize_facades.ipynb # ablation experiments with batch size on Facades
 ├── ablation_da_facades.ipynb # ablation experiments with data augmentation on Facades
