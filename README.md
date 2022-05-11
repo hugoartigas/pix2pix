@@ -1,8 +1,4 @@
-h1 {
-  text-align: center;
-}
-
-<p align="center"><h1> <b>Image-to-Image Translation with cGANs </b> </h1> </p>
+<center> <h1>Image-to-Image Translation with cGANs </h1> </center>
 
 <p align="center"> <i>Authors:</i> Antonin Vidon, Hugo Artigas and Waël Boukhobza </p>
 
