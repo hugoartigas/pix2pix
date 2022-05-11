@@ -10,6 +10,10 @@ from torch.autograd import Variable
 from torch.utils.data import Dataset, DataLoader
 import torchvision.transforms as T
 from torch.nn import BCEWithLogitsLoss, L1Loss, MSELoss
+from fastai.vision.learner import create_body
+from torchvision.models.resnet import resnet18
+from fastai.vision.models.unet import DynamicUnet
+from tqdm import tqdm
 
 # set paths
 images_path = os.path.join(os.getcwd(), 'images') 
@@ -439,3 +443,72 @@ def plot_and_save_history(history, filename, title = None):
     # save plot and show
     plt.savefig(history_path + '/' + filename + '.png')
     plt.show()
+ 
+#Below: for our enhanced pix2pix on colorization task
+
+
+def build_res_unet(n_input=3, n_output=3, size=256):
+    """
+    Description
+    -------------
+    Builds the downsampling backbone for our new generator; instead of training it, we load weights 
+    from a Resnet-18 trained on ImageNet, a way bigger dataset that ours.
+    Parameters
+    -------------
+    n_input     : number of channels (e.g. r,g,b: 3) of our input
+    n_output    : number of channels (e.g. r,g,b: 3) of our output
+    size        : size of images (here: 256x256)
+    """
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    body = create_body(resnet18, pretrained=True, n_in=n_input, cut=-2)
+    net_G = DynamicUnet(body, n_output, (size, size)).to(device)
+    return net_G
+
+def pretrain_generator(net_G, dataloader, epochs = 10):
+    """
+    Description
+    -------------
+    Pretrains the full generator on our dataset for minimizing the L1 loss on the colorization task;
+    this is done before putting the Generator against the discriminator, to give our model some sense
+    of what it needs to do before starting the adversarial process.
+    Parameters
+    -------------
+    net_G       : pre-trained generator on Resnet-18
+    dataloader  : our dataloader
+    epochs      : number of epochs on the colorization task
+    """
+    opt = torch.optim.Adam(net_G.parameters(), lr=1e-4)
+    criterion = torch.nn.L1Loss()
+    for e in range(epochs):
+        loss_meter = AverageMeter()
+        for input, real in tqdm(dataloader['train']):
+            # send tensors to device
+            input = input.to(device)
+            real = real.to(device)
+            preds = net_G(input)
+            loss = criterion(preds, real)
+            opt.zero_grad()
+            loss.backward()
+            opt.step()
+            
+            loss_meter.update(loss.item(), input.size(0))
+            
+        print(f"Epoch {e + 1}/{epochs}")
+        print(f"L1 Loss: {loss_meter.avg:.5f}")
+
+class AverageMeter:
+    """
+    Description
+    -------------
+    Computes and stores the average and current value.
+    """
+    def __init__(self):
+        self.reset()
+        
+    def reset(self):
+        self.count, self.avg, self.sum = [0.] * 3
+    
+    def update(self, val, count=1):
+        self.count += count
+        self.sum += count * val
+        self.avg = self.sum / self.count
