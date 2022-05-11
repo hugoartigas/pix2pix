@@ -1,4 +1,4 @@
-<h1 style="text-align: center;">Image-to-Image Translation with cGANs </h1> 
+<h1 align="center">Image-to-Image Translation with cGANs </h1> 
 
 <p align="center"> <i>Authors:</i> Antonin Vidon, Hugo Artigas and Waël Boukhobza </p>
 
@@ -34,8 +34,8 @@ python download_data.py --dataset_name = 'facades' # download facades dataset
 ├── ablation_batchsize_facades.ipynb # ablation experiments with batch size on Facades
 ├── ablation_da_facades.ipynb # ablation experiments with data augmentation on Facades
 ├── ablation_loss_facades.ipynb # ablation experiments with losses on Facades
-├── download_data.py # script to download pix2pix datasets
 ├── dataset_colorization_download.ipynb # notebook to download and prepare the Country211 dataset for colorization task
+├── download_data.py # script to download pix2pix datasets
 ├── model.py # our Pix2Pix model implementation
 ├── train_colorization.ipynb # training notebook for colorization task
 ├── train_da_facades.ipynb # training notebook with data augmentation on Facades
