@@ -1,6 +1,6 @@
 # Image-to-Image Translation with cGANs
 
-<p align="center"> *Authors :* Antonin Vidon, Hugo Artigas and Waël Boukhobza </p>
+<p align="center"> <i>Authors:</i> Antonin Vidon, Hugo Artigas and Waël Boukhobza </p>
 
 <p align="center">
   <img src="./figures/preamble.png">
