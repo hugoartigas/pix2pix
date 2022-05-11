@@ -2,7 +2,7 @@
 
 *Authors :* Antonin Vidon, Hugo Artigas and Waël Boukhobza
 
-<p align=center> ![preamble](./figures/preamble.png)
+<center> ![preamble](./figures/preamble.png) </center>
 
 This repo contains our attempt to replicate the results of pix2pix on the 'Facades' dataset. We conduct ablation experiments on data augmentation, choice of loss, batch size, ... We then constitute our own training dataset from [Country211](https://openaipublic.azureedge.net/clip/data/country211.tgz). # ajouter les bails faits par wael (pretraining, etc)
 
