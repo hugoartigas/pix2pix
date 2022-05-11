@@ -60,6 +60,7 @@ python download_data.py --dataset_name = 'facades' # download facades dataset
 
 ![da_no_val](./plots/plot_da_images.png)
 
+![colo](./plots/plot_colorization.png)
 ## Model weights
 
 [Link to model weights](https://drive.google.com/drive/folders/1x1r_KKVbPvnI8zm7YMAIR6RPV_L4ASt4?usp=sharing) (lionmail only).
