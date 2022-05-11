@@ -6,7 +6,7 @@
   <img src="./figures/preamble.png">
 </p>
 
-This repo contains our attempt to replicate the results of pix2pix on the 'Facades' dataset. We conduct ablation experiments on data augmentation, choice of loss, batch size, ... We then constitute our own training dataset from [Country211](https://openaipublic.azureedge.net/clip/data/country211.tgz). # ajouter les bails faits par wael (pretraining, etc)
+This repo contains our attempt to replicate the results of pix2pix on the 'Facades' dataset. We conduct ablation experiments on data augmentation, choice of loss, batch size, ... We then constitute our own training dataset from [Country211](https://openaipublic.azureedge.net/clip/data/country211.tgz), and perform our colorization task on it. pix2pix by itself actually gives unsatisfactory results for this task; we thus decided to enhance the model by pre-trained the Generator (without the discriminator) on the ImageNet dataset. This results in better results, sometimes indiscernible from a real image with a naked eye.
 
 
 ## Data
@@ -35,7 +35,9 @@ python download_data.py --dataset_name = 'facades' # download facades dataset
 ├── ablation_da_facades.ipynb # ablation experiments with data augmentation on Facades
 ├── ablation_loss_facades.ipynb # ablation experiments with losses on Facades
 ├── download_data.py # script to download pix2pix datasets
+├── dataset_colorization_download.ipynb # notebook to download and prepare the Country211 dataset for colorization task
 ├── model.py # our Pix2Pix model implementation
+├── train_colorization.ipynb # training notebook for colorization task
 ├── train_da_facades.ipynb # training notebook with data augmentation on Facades
 ├── train_noda_facades.ipynb # training notebook without data augmentation on Facades
 ├── utils.py # all functions used : create dataset, train model, plot, render outputs, ...
