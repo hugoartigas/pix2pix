@@ -1,4 +1,4 @@
-<p align="center"> <b>Image-to-Image Translation with cGANs </b></p>
+<p align="center"><big> <b>Image-to-Image Translation with cGANs </b> </big></p>
 
 <p align="center"> <i>Authors:</i> Antonin Vidon, Hugo Artigas and Waël Boukhobza </p>
 
