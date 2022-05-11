@@ -1,6 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import os
+import cv2
 from PIL import Image
 import pickle
 import time
@@ -136,6 +137,126 @@ def generate_images(model, input, real):
         plt.imshow(to_display)
         plt.axis('off')
     plt.show()
+    
+    
+def generate_images_multimodel(model_list, input_list, real_list, forced_title = False):
+    """
+    Description
+    -------------
+    Plot input, real image and model predictions side by side for several models at the same time
+    Parameters
+    -------------
+    model_list  : list of Pix2Pix models 
+    input_list  : list of input images
+    real_list   : list of real images
+    force_title : for report purpose, to have handcrafted titles for plots
+    """
+
+    # create figure
+    plt.figure(figsize=(5 + 4.3 * len(model_list),4 * len(input_list)))
+
+    # recover image of each batch of size 1
+    display_list = []
+    title = []
+    for input, real in zip(input_list, real_list):
+        predictions = [] #predictions for each model
+        for model in model_list:
+            predictions.append(model.generator(input.to(device)))
+
+        display_list += [input[0], real[0]]
+        display_list += [prediction[0] for prediction in predictions]
+        title.extend(['Input Image', 'Ground Truth'])
+        if forced_title:
+            title.extend(['Original Pix2Pix (our implementation)', 'Our new Pix2Pix on 10 epochs', 'Our new Pix2Pix on 20 epochs'])
+        else:
+            title.extend([f'Predicted Image by model {i}' for i in range(len(model_list))])
+
+    n_images = (2+ len(model_list)) * len(input_list)
+    for i in range(n_images):
+        plt.subplot(len(input_list), 2 + len(model_list), i+1)
+        if i>= n_images - 5:
+            plt.title(title[i], y=-0.14)
+        # Getting the pixel values in the [0, 1] range to plot
+        to_display = np.clip(display_list[i].permute(1,2,0).detach().cpu().numpy(), 0, 1)
+        plt.imshow(to_display)
+        plt.axis('off')
+    plt.show()
+    
+   
+def generate_color_histogram(model_list, input, real):
+    """
+    Description
+    -------------
+    Generates color distributions for several models on an input image
+    Parameters
+    -------------
+    input   : input image
+    real    : real image
+    model_list  : list of Pix2Pix models
+    """
+    # create figure
+    plt.figure(figsize=(5 + 5 * len(model_list),5))
+    
+    #Compute predictions 
+    predictions = [] #predictions for each model
+    for model in model_list:
+        predictions.append(model.generator(input.to(device)))
+
+    # recover image of each batch of size 1
+    display_list = [input[0], real[0]] + [prediction[0] for prediction in predictions]
+
+    title = ['Input Image', 'Ground Truth', 'Original Pix2Pix (our implementation)', 'Our new Pix2Pix on 10 epochs', 'Our new Pix2Pix on 20 epochs']
+
+    for i in range(5):
+        plt.subplot(1, 5, i+1)
+        plt.title(title[i])
+        # Getting the pixel values in the [0, 1] range to plot
+        to_display = np.clip(display_list[i].permute(1,2,0).detach().cpu().numpy(), 0, 1)
+        plt.imshow(to_display)
+        plt.axis('off')
+    plt.show()
+
+    styles = [':', '--', '-']
+    plt.figure(figsize=(20,10))
+    plt.subplot(3,1,1)
+    to_display = 256*real[0].permute(1,2,0).detach().cpu().numpy()
+    blue_histogram = cv2.calcHist([to_display], [0], None, [256], [0, 256])
+    plt.plot(blue_histogram, label = 'Ground Truth', c = 'darkblue')
+
+    
+
+    for j, prediction in enumerate(predictions):
+        to_display = 256*prediction[0].permute(1,2,0).detach().cpu().numpy()
+        blue_histogram = cv2.calcHist([to_display], [0], None, [256], [0, 256])
+        plt.plot(blue_histogram, label = title[2+j], ls = styles[j], c = 'black')
+    plt.legend(loc="upper right")
+    plt.title("blue")
+
+    plt.subplot(3,1,2)
+    to_display = 256*real[0].permute(1,2,0).detach().cpu().numpy()
+    red_histogram = cv2.calcHist([to_display], [1], None, [256], [0, 256])
+    plt.plot(red_histogram, label = 'Ground Truth', c = 'red')
+    
+    for j, prediction in enumerate(predictions):
+        to_display = 256*prediction[0].permute(1,2,0).detach().cpu().numpy()
+        red_histogram = cv2.calcHist([to_display], [1], None, [256], [0, 256])
+        plt.plot(red_histogram, label = title[2+j], ls = styles[j], c = 'black')
+    plt.legend(loc="upper right")
+    plt.title("red")
+
+    plt.subplot(3,1,3)
+    to_display = 256*real[0].permute(1,2,0).detach().cpu().numpy()
+    green_histogram = cv2.calcHist([to_display], [2], None, [256], [0, 256])
+    plt.plot(green_histogram, label = 'Ground Truth', c = 'green')
+    
+    for j, prediction in enumerate(predictions):
+        to_display = 256*prediction[0].permute(1,2,0).detach().cpu().numpy()
+        green_histogram = cv2.calcHist([to_display], [2], None, [256], [0, 256])
+        plt.plot(green_histogram, label = title[2+j], ls = styles[j], c = 'black')
+        plt.legend(loc="upper right")
+    plt.title("green")
+    plt.show()
+ 
 
 def train(model, n_epochs, display_step, save_step, dataloaders, filename, lr = 2e-4, lbd = 200, loss_l1_true = True, loss_l2_true = False, loss_cGAN_true = True):
     """
