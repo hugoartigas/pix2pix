@@ -159,12 +159,15 @@ class Pix2Pix(nn.Module):
     """
     The Pix2Pix archiecture with U-Net generator and patch GAN disciminator
     """
-    def __init__(self):
+    def __init__(self, generator = None):
         super(Pix2Pix, self).__init__()
-        self.generator = Generator()
+        if generator is None: #in pix2pix by default
+            self.generator = Generator()
+            self.generator = self.generator.apply(self._weights_init) # intialize weights
+        else: #allows us to plug a custom generator in pix2pix
+            self.generator = generator.to(self.device)
         self.discriminator = Discriminator()
         # intialize weights
-        self.generator = self.generator.apply(self._weights_init)
         self.discrimator = self.discriminator.apply(self._weights_init)
 
     def _weights_init(self, m):
